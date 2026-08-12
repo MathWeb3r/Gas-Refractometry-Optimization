@@ -12,7 +12,9 @@ dependencies = [
     "numpy",
     "scipy",
     "matplotlib",
-    "pandas"
+    "pandas",
+    "emcee",
+    "kneed"
 ]
 
 [tool.setuptools.packages.find]
