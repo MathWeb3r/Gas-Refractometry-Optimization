@@ -1,0 +1,208 @@
+{
+    "co2_1": {
+        "metadata": {
+            "gas": "CO2",
+            "label": "$CO_{2}$",
+            "t_ref": 293.15,
+            "p_ref": 101325,
+            "multiplier": 1e-08,
+            "reference": "Zhang, Lu e Wang (2008)"
+        },
+        "spectral_range_nm": {
+            "min": 0.74,
+            "max": 0.86
+        },
+        "coef": {
+            "A": 7137.238,
+            "B": [
+                6946980.0,
+                341712.4
+            ],
+            "C": [
+                248.556,
+                57.7534
+            ]
+        },
+        "sigma": 7.8
+    },
+    "co2_2": {
+        "metadata": {
+            "gas": "CO2",
+            "label": "$CO_{2}$",
+            "t_ref": 293.15,
+            "p_ref": 101325,
+            "multiplier": 1e-08,
+            "reference": "J. G. Old, E. R. Peck (1971)"
+        },
+        "spectral_range_nm": {
+            "min": 0.48,
+            "max": 1.817
+        },
+        "coef": {
+            "A": 0.0,
+            "B": [
+                143.753,
+                7731746.0,
+                267652.26
+            ],
+            "C": [
+                0.0584738,
+                210.92417,
+                60.122959
+            ]
+        },
+        "sigma": 6.0
+    },
+    "n2_1": {
+        "metadata": {
+            "gas": "N2",
+            "label": "$N_{2}$",
+            "t_ref": 293.15,
+            "p_ref": 101325,
+            "multiplier": 1e-08,
+            "reference": "Zhang, Lu e Wang (2008)"
+        },
+        "spectral_range_nm": {
+            "min": 0.74,
+            "max": 0.86
+        },
+        "coef": {
+            "A": 8736.28,
+            "B": [
+                2398095.2
+            ],
+            "C": [
+                128.7
+            ]
+        },
+        "sigma": 1.8
+    },
+    "n2_2": {
+        "metadata": {
+            "gas": "N2",
+            "label": "$N_{2}$",
+            "t_ref": 293.15,
+            "p_ref": 101325,
+            "multiplier": 1e-08,
+            "reference": "E. R. Peck e B. N. Khanna (1966)"
+        },
+        "spectral_range_nm": {
+            "min": 0.468,
+            "max": 2.059
+        },
+        "coef": {
+            "A": 6386.23,
+            "B": [
+                3021283.0
+            ],
+            "C": [
+                144.0
+            ]
+        },
+        "sigma": 10.0
+    },
+    "o2": {
+        "metadata": {
+            "gas": "O2",
+            "label": "$O_{2}$",
+            "t_ref": 293.15,
+            "p_ref": 101325,
+            "multiplier": 1e-08,
+            "reference": "Zhang, Lu e Wang (2008)"
+        },
+        "spectral_range_nm": {
+            "min": 0.74,
+            "max": 0.86
+        },
+        "coef": {
+            "A": 15532.45,
+            "B": [
+                456402.97
+            ],
+            "C": [
+                50.0
+            ]
+        },
+        "sigma": 10.0
+    },
+    "ar_1": {
+        "metadata": {
+            "gas": "Ar",
+            "label": "$Ar$",
+            "t_ref": 293.15,
+            "p_ref": 101325,
+            "multiplier": 1e-08,
+            "reference": "Zhang, Lu e Wang (2008)"
+        },
+        "spectral_range_nm": {
+            "min": 0.74,
+            "max": 0.86
+        },
+        "coef": {
+            "A": 12236.13,
+            "B": [
+                1232158.1
+            ],
+            "C": [
+                90.7
+            ]
+        },
+        "sigma": 0.6
+    },
+    "ar_2": {
+        "metadata": {
+            "gas": "Ar",
+            "label": "$Ar$",
+            "t_ref": 293.15,
+            "p_ref": 101325,
+            "multiplier": 1e-08,
+            "reference": "E. R. Peck e D. J. Fisher (1964)"
+        },
+        "spectral_range_nm": {
+            "min": 0.486,
+            "max": 2.059
+        },
+        "coef": {
+            "A": 6322.05,
+            "B": [
+                2811641.7
+            ],
+            "C": [
+                144.0
+            ]
+        },
+        "sigma": 4.2
+    },
+    "co2_3": {
+        "metadata": {
+            "gas": "CO2",
+            "label": "$CO_{2}$",
+            "t_ref": 273.15,
+            "p_ref": 101325,
+            "multiplier": 1e-05,
+            "reference": "Bideau-Mehu et al. (1973)"
+        },
+        "spectral_range_nm": {
+            "min": 0.181,
+            "max": 1.694
+        },
+        "coef": {
+            "A": 0.0,
+            "B": [
+                6990.995875,
+                144.720275,
+                6.4294137,
+                5.2130642,
+                0.1468473798
+            ],
+            "C": [
+                166.175,
+                79.609,
+                56.3064,
+                46.0196,
+                0.0584738
+            ]
+        },
+        "sigma": 0.05
+    }
+}
