@@ -144,7 +144,7 @@ class Gas(Sellmeier):
             B = data[id]['coef']['B']
             C = data[id]['coef']['C']
             super().__init__(A=A, B=B, C=C)
-
+            
             # metadata
             self.name = data[id]['metadata']['gas']
             self.t_ref = data[id]['metadata']['t_ref']

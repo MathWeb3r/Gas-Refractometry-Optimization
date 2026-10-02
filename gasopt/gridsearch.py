@@ -1,6 +1,8 @@
 import itertools
 import numpy as np
 import multiprocessing
+import warnings
+import pandas as pd
 from gasopt import GasMix
 from math import comb
 
@@ -116,27 +118,38 @@ class GridSearch():
         '''
         return list(itertools.islice(self.combs, size))
 
-    def _gas_valid_interval(self, gasid):
+    def _gas_valid_interval(self, gasid, wvlen):
         '''
         Encontra uma equação valida para o gas de id = gasid
+        para o comprimento de onda wvlen (em um).
+        Se nao encontrar, avisa com warning e usa o primeiro candidato.
         '''
+        candidatos = self.gasesid_hash[gasid]
+        for g in candidatos:
+            rmin, rmax = g.range
+            if rmin <= wvlen <= rmax:
+                return g
         
+        # se nenhuma equacao cobrir esse comprimento de onda, avisa e usa o primeiro
+        warnings.warn(f"Comprimento de onda {wvlen:.4f} um fora da faixa para '{gasid}'. Usando extrapolacao de {candidatos[0].name}.")
+        return candidatos[0]
 
     def _get_bigmatrix(self):
         '''
-        Calucula de antemão todas as refratividades. Isso é, refratividade
+        Calcula de antemão todas as refratividades. Isso é, refratividade
         para todos os comprimentos de onda e todos os gases.
-
-        todo: fazer um verficação de validade da equações por gas. Por exemplo,
-        se o comprimento de onda for menor que 740nm não usar o coeficientes de 
-        'co2_1' e usar os de 'cos_2'.
+        
+        Para cada lambda e para cada gas, escolhe a equacao mais adequada.
         '''
+        self.bigmatrix = np.zeros((len(self.sample), len(self.gasesid)))
 
-        self.bigmatrix = GasMix(
-            ids=self.gasesid,
-            wvlens=np.array(self.sample), # converte nm p/ um
-            temp=self.temp
-        ).get_matrix()
+        for i, wl in enumerate(self.sample):
+            for j, gas in enumerate(self.gasesid):
+                g = self._gas_valid_interval(gas, wl)
+                # fator de temperatura
+                t_factor = g.t_ref / self.temp
+                refrac = g.calculate_sellmeier(float(wl))[0]
+                self.bigmatrix[i, j] = refrac * t_factor
 
     def _calculate_kappa(self, chunk):
         '''
@@ -223,34 +236,72 @@ class GridSearch():
         return GridResult(
             arr = self._heap2array(),
             k = self.k,
-            sample = self.sample
+            sample = self.sample,
+            grid=self
         )
 
 class GridResult:
-    def __init__(self, arr, k, sample):
+    def __init__(self, arr, k, sample, grid = None):
         self.raw = arr
         self.k = k
+        self.grid = grid
         # O melhor é a linha 0
         self.best_kappa = arr[0, 0]
         self.best_lambdas = arr[0, 1:]
         
+        
     def to_dataframe(self):
         cols = ['kappa'] + [f'l_{i+1}' for i in range(self.k)]
-        return pd.DataFrame(self.raw, columns=cols)
+        df = pd.DataFrame(self.raw, columns=cols)
+        
+        # se tiver o buscador, descobre sob demanda os ids usados
+        if self.grid is not None:
+            for i in range(self.k):
+                col_laser = f'l_{i+1}'
+                col_ids = f'l_{i+1}_ids'
+                
+                # para cada linha do dataframe, busca os ids dos gases nesse lambda
+                ids_coluna = []
+                for wl in df[col_laser]:
+                    ids_laser = {
+                        gas: self.grid._gas_valid_interval(gas, wl).reference
+                        for gas in self.grid.gasesid
+                    }
+                    ids_coluna.append(ids_laser)
+                
+                df[col_ids] = ids_coluna
+                
+        return df
+
+        
 
     def __repr__(self):
-        return f"<GridResult: Melhor kappa={self.best_kappa:.2f} com lasers={self.best_lambdas}>"
-
+        # cabecalho basico com o melhor kappa e os lasers
+        linhas = [
+            f"<GridResult: Melhor kappa={self.best_kappa:.2f}>",
+            f"Lasers (um): {list(np.round(self.best_lambdas, 4))}"
+        ]
+        
+        # detalha as equacoes usadas em cada um dos 4 lasers campeoes
+        if self.grid is not None:
+            linhas.append("Equações utilizadas:")
+            for i, wl in enumerate(self.best_lambdas):
+                # pega a referencia de cada gas para esse comprimento de onda
+                eqs = [
+                    f"{gas}: {self.grid._gas_valid_interval(gas, wl).reference}" 
+                    for gas in self.grid.gasesid
+                ]
+                linhas.append(f"  l_{i+1} ({wl:.4f} um): " + " | ".join(eqs))
+                
+        return "\n".join(linhas)
 
 if __name__ == '__main__':
-    print(ids_hash(['o2', 'co2']))
-
-    exit()
-    a = np.linspace(0.2, 2.0, int((2 - 0.2 + 0.02) / 0.02))
-    print(a)
+    a = np.linspace(0.2, 2.0)
+    print("Sample:", a)
     
     c = GridSearch(sample=a, k=4)   
 
     res = c.run_seach()
     print(res)
     print('N combinacaoes: ', len(c))
+    print(res.to_dataframe())
