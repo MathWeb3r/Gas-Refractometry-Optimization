@@ -7,6 +7,7 @@ from math import comb
 from heapq import heapify
 from heapq import heappush as push
 from heapq import heappop as hpop
+from heapq import heapreplace as replace
 
 # This class calculates the the kappa for every possible combination
 # of elements of a sample. Then find a N size smallest kappas set   
@@ -82,7 +83,7 @@ class GridSearch():
         'co2_1' e usar os de 'cos_2'.
         '''
 
-        self.big_matrix = GasMix(
+        self.bigmatrix = GasMix(
             ids=self.gasesid,
             wvlens=np.array(self.sample), # converte nm p/ um
             temp=self.temp
@@ -90,16 +91,21 @@ class GridSearch():
 
     def _calculate_kappa(self, chunk):
         '''
-        
+        chunk é a matriz de índices, para um combinção específica
+        índices relativos a bigmatrix  
         '''
+
         # cria uma matrix M x N
         # M: Numero de gases 
         # N: Numero de lasers
+        # aqui estão todas as refratividades possíveis já
         self._get_bigmatrix()
 
         # tensor tamanho: M x N x chunksize
+        # recorta a matriz da refratividades para aquelas 
+        # que estão nesse chunk
         tensor = self.bigmatrix[chunk]
-        
+
         # tensor dos valores singulares
         s = np.linalg.svd(tensor, compute_uv=False)
         
@@ -112,7 +118,7 @@ class GridSearch():
         kappas = s[:, 0] / s[:, -1]
         return kappas
 
-    def _update_heap(self, kappas):
+    def _update_heap(self, kappas, chunk):
         '''
         Recebe uma lista de candidatos kappas e verifica se eles são
         bons ou ruins.
@@ -123,37 +129,75 @@ class GridSearch():
         O heap é mantido com tamanho fixo
         '''
 
-        for k in kappas:
+        for k, idx in zip(kappas, chunk):
+            lambdas = self.sample[list(idx)]
             # enche o heap até o tamanho 
             if len(self.heap) < self.nbest:
-                push(self.heap, -k)
+                push(self.heap, (-k, lambdas))
             else:
                 # O heapq é implementado como um min heap
                 # então estou usando os opostos (*-1)
-                if -k > -self.heap[0]:
-                    hpop(self.heap)
-                    push(self.heap, k)
+                if -k > self.heap[0][0]:
+                    replace(self.heap, (-k, lambdas))
 
+    def _heap2array(self):
+        '''
+        Transforma o heap em uma array
+        '''
+        n_items = len(self.heap)
+        arr = np.zeros((n_items, self.k + 1))
+        
+        # percorre a lista de tras para frente
+        # para ter um ordenação crescente
+        for i in range(n_items-1, -1, -1):
+            k, lambdas = hpop(self.heap)
+            
+            arr[i, 0] = -k # k esta invertido no heap
+            arr[i, 1:] = lambdas
+
+        return arr
 
     def run_seach(self, n_best: int = 100, chunk_size: int = 1000):
         '''
-
         n_best: int, numero do conjunto das melhores combinações
         '''
         
         self.nbest = n_best
 
         for i in range(self.size // chunk_size + 1):
-            chunk = self._get_chunck(chunk_size)
-            kappas = self._calculate_kappa(chunk)
-            self._update_heap(kappas)            
+            curr_chunk = self._get_chunck(chunk_size)
+            curr_kappas = self._calculate_kappa(curr_chunk)
+            self._update_heap(curr_kappas, curr_chunk)            
 
-        return list(self.heap)
+        
+        return GridResult(
+            arr = self._heap2array(),
+            k = self.k,
+            sample = self.sample
+        )
+
+class GridResult:
+    def __init__(self, arr, k, sample):
+        self.raw = arr
+        self.k = k
+        # O melhor é a linha 0
+        self.best_kappa = arr[0, 0]
+        self.best_lambdas = arr[0, 1:]
+        
+    def to_dataframe(self):
+        cols = ['kappa'] + [f'l_{i+1}' for i in range(self.k)]
+        return pd.DataFrame(self.raw, columns=cols)
+
+    def __repr__(self):
+        return f"<GridResult: Melhor kappa={self.best_kappa:.2f} com lasers={self.best_lambdas}>"
+
 
 if __name__ == '__main__':
-    a = ['a', 'b', 'c', 'd', 'e']
+    a = np.linspace(0.2, 2.0, int((2 - 0.2 + 0.02) / 0.02))
+    print(a)
     
-    c = GridSearch(sample=a, k=3)
-    
-    print(c.run_seach())
+    c = GridSearch(sample=a, k=4)   
+
+    res = c.run_seach()
+    print(res)
     print('N combinacaoes: ', len(c))
