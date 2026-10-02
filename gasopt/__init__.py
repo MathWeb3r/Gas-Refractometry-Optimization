@@ -5,3 +5,4 @@ from .plotting import *
 from .bayes_inference import *
 from .tikhonov import *
 from .constrain_sover import *
+from .gridsearch import *
