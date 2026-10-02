@@ -101,7 +101,7 @@
         },
         "sigma": 10.0
     },
-    "o2_1": {
+    "o2": {
         "metadata": {
             "gas": "O2",
             "label": "$O_{2}$",
@@ -204,5 +204,29 @@
             ]
         },
         "sigma": 0.05
+    },
+    "o2_2": {
+        "metadata": {
+            "gas": "O2",
+            "label": "$O_{2}$",
+            "t_ref": 293.15,
+            "p_ref": 101325,
+            "multiplier": 1e-08,
+            "reference": "Křen, Petr (2011)"
+        },
+        "spectral_range_nm": {
+            "min": 0.4,
+            "max": 1.8
+        },
+        "coef": {
+            "A": 11814.94,
+            "B": [
+                970893.1
+            ],
+            "C": [
+                75.4
+            ]
+        },
+        "sigma": 5.0
     }
 }
