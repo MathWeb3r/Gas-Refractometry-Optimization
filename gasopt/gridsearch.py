@@ -264,7 +264,7 @@ class GridResult:
                 ids_coluna = []
                 for wl in df[col_laser]:
                     ids_laser = {
-                        gas: self.grid._gas_valid_interval(gas, wl).reference
+                        str(self.grid._gas_valid_interval(gas, wl))
                         for gas in self.grid.gasesid
                     }
                     ids_coluna.append(ids_laser)
@@ -288,15 +288,16 @@ class GridResult:
             for i, wl in enumerate(self.best_lambdas):
                 # pega a referencia de cada gas para esse comprimento de onda
                 eqs = [
-                    f"{gas}: {self.grid._gas_valid_interval(gas, wl).reference}" 
+                    str(self.grid._gas_valid_interval(gas, wl)) 
                     for gas in self.grid.gasesid
                 ]
                 linhas.append(f"  l_{i+1} ({wl:.4f} um): " + " | ".join(eqs))
-                
+        
+
         return "\n".join(linhas)
 
 if __name__ == '__main__':
-    a = np.linspace(0.2, 2.0)
+    a = np.linspace(0.2, 0.4)
     print("Sample:", a)
     
     c = GridSearch(sample=a, k=4)   
