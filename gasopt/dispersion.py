@@ -162,6 +162,9 @@ class Gas(Sellmeier):
             # incerteza
             self.sigma = data[id]['sigma']
 
+    def __repr__(self):
+        return f'{self.name} de {self.reference}'
+
     def calculate_sellmeier(self, x):
         """
         this method calculate the sellmeier equation 

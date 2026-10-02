@@ -15,12 +15,53 @@ from heapq import heapreplace as replace
 # Para não estorar o limite de memória, ou utilizar memória 
 # demais (deixando o pc lerdo), 
 
-
 # Para manter o consumo constante de memória vou salvar apenas as
 # N melhores combinações em um max heap. Tambem vou dividir as 
 # combinações em pedaços (chunks).
 # Então vou calcular os kappas em um chunk, 
 
+
+import json
+from pathlib import Path
+from dispersion import Gas
+# espera essa estruta de arquivo
+#
+# gas_refractometry_optimize
+# ├── gasopt
+# │   ├── __init__.py
+# │   ├── gridsearch.py
+# ├── data
+# │   └── gas_database.json
+
+# Caminho do arquivo atual
+current_file = Path(__file__).resolve()
+
+# .parent é 'scripts/', .parent.parent é a raiz do projeto 'gas_refractometry_optimize/'
+BASE_DIR = current_file.parent.parent 
+
+# caminho do database
+DATAPATH = BASE_DIR / 'data' / 'gas_database.json'
+with open(DATAPATH, 'r') as f:
+    DATABASE = json.load(f)
+
+def ids_hash(gasesid):
+    gashash = dict()
+    # encontrando os ids validos para cada gas
+    for gas in gasesid:
+        valid_id = True 
+        gashash[gas] = []
+        i = 1
+        while valid_id: 
+            try:
+                curr_id = f'{gas}_{i}'
+                DATABASE[curr_id]
+                gashash[gas] += [Gas(id=curr_id)]
+            except:
+                valid_id = False
+
+            i += 1
+
+    return gashash
 
 class GridSearch():
     def __init__(self, sample: np.ndarray = np.array([]), k: int = 4):
@@ -42,7 +83,9 @@ class GridSearch():
         # indice depois, baseado na validade de cada equação
         #
         # depois pensar em como o usuario escolhe isso
-        self.gasesid = ['co2_1', 'o2_1', 'ar_1', 'n2_1']
+        self.gasesid = ['co2', 'o2', 'ar', 'n2']
+        
+        self.gasesid_hash = ids_hash(self.gasesid)
 
         # temperatura da mistura
         self.temp = 273.15
@@ -72,6 +115,12 @@ class GridSearch():
         as combinações que faltam  
         '''
         return list(itertools.islice(self.combs, size))
+
+    def _gas_valid_interval(self, gasid):
+        '''
+        Encontra uma equação valida para o gas de id = gasid
+        '''
+        
 
     def _get_bigmatrix(self):
         '''
@@ -194,6 +243,9 @@ class GridResult:
 
 
 if __name__ == '__main__':
+    print(ids_hash(['o2', 'co2']))
+
+    exit()
     a = np.linspace(0.2, 2.0, int((2 - 0.2 + 0.02) / 0.02))
     print(a)
     
