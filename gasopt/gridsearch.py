@@ -95,11 +95,6 @@ class GridSearch():
         índices relativos a bigmatrix  
         '''
 
-        # cria uma matrix M x N
-        # M: Numero de gases 
-        # N: Numero de lasers
-        # aqui estão todas as refratividades possíveis já
-        self._get_bigmatrix()
 
         # tensor tamanho: M x N x chunksize
         # recorta a matriz da refratividades para aquelas 
@@ -163,6 +158,12 @@ class GridSearch():
         '''
         
         self.nbest = n_best
+
+        # cria uma matrix M x N
+        # M: Numero de gases 
+        # N: Numero de lasers
+        # aqui estão todas as refratividades possíveis já
+        self._get_bigmatrix()
 
         for i in range(self.size // chunk_size + 1):
             curr_chunk = self._get_chunck(chunk_size)
