@@ -127,7 +127,7 @@ class Gas(Sellmeier):
             self.range = spc_range
             self.multiplier = magnitude
 
-    def _loadData(self, id):
+    def _loadData(self, _id):
         '''
         This method load the data from the gas_database.json
         and set the attributes of the class
@@ -140,27 +140,28 @@ class Gas(Sellmeier):
             data = json.load(f)
 
             # sellmeier coefficients
-            A = data[id]['coef']['A']       
-            B = data[id]['coef']['B']
-            C = data[id]['coef']['C']
+            A = data[_id]['coef']['A']       
+            B = data[_id]['coef']['B']
+            C = data[_id]['coef']['C']
             super().__init__(A=A, B=B, C=C)
             
             # metadata
-            self.name = data[id]['metadata']['gas']
-            self.t_ref = data[id]['metadata']['t_ref']
-            self.p_ref = data[id]['metadata']['p_ref']
-            self.multiplier = data[id]['metadata']['multiplier']
+            self.id = _id
+            self.name = data[_id]['metadata']['gas']
+            self.t_ref = data[_id]['metadata']['t_ref']
+            self.p_ref = data[_id]['metadata']['p_ref']
+            self.multiplier = data[_id]['metadata']['multiplier']
             
             # intervalo de validade dos coeficientes
-            inf = data[id]['spectral_range_nm']['min']
-            sup = data[id]['spectral_range_nm']['max']
+            inf = data[_id]['spectral_range_nm']['min']
+            sup = data[_id]['spectral_range_nm']['max']
             self.range = (inf, sup)
 
             # artigo de referencia
-            self.reference = data[id]['metadata']['reference']
+            self.reference = data[_id]['metadata']['reference']
 
             # incerteza
-            self.sigma = data[id]['sigma']
+            self.sigma = data[_id]['sigma']
 
     def __repr__(self):
         return f'{self.name} de {self.reference}'
