@@ -1,4 +1,6 @@
 from .dispersion import *
+from .database import *
+from .mixture import *
 from .gladstone_dale import *
 from .simulation import *
 from .plotting import *
