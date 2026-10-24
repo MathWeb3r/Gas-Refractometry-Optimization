@@ -325,8 +325,7 @@ class TikhonovSolver():
         # Mapear o índice de curvatura máxima de volta para o vetor original
         return int(indices_originais[np.argmax(curve)]), curve
     
-
-    def is_valid_L(x, y, knee_index, curve_vals):
+    def is_valid_L(self, x, y, knee_index, curve_vals):
         """
         Retorna True se a curva tem geometria de L, e False caso contrário.
         """
@@ -463,13 +462,9 @@ class TikhonovSolver():
             knee_index, curve_vals = self.find_max_curvature_spline(x, y)
             
             # Verifica se a geometria de L é válida
-            if not is_valid_L(x, y, knee_index, curve_vals):
+            if not self.is_valid_L(x, y, knee_index, curve_vals):
                 # Não formou um L -> faz o fallback automático para Morozov
                 knee_index, _ = self.find_morozov(phis)
-            else:
-                knee = self.find_knee(x, y)
-                knee_index = np.where(x == knee)[0][0]
-                curve_vals = np.array([])
 
         # Extrair a solução ótima
         optimal_alpha = good_alphas[knee_index]
