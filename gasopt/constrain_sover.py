@@ -14,10 +14,10 @@ class ConstrainSolver:
 
     def __init__(
         self,
-        mtx: np.ndarray,
-        sigma_mtx: np.ndarray,
-        b_obs: np.ndarray,
-        sigma_b: np.ndarray,
+        mtx: np.ndarray = None,
+        sigma_mtx: np.ndarray = None,
+        b_obs: np.ndarray = None,
+        sigma_b: np.ndarray = None,
         x0: Optional[np.ndarray] = None,
         init_strategy: str = 'uniform',
         verbose: bool = False
