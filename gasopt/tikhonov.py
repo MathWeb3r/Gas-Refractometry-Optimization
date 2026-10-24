@@ -36,21 +36,46 @@ class TikhonovSolver():
         """
 
         # Melhorando a precisão numérica
-        # O sistema é linear: A . x = b
-        # Então, o vetor b e as incertezas também são multiplicados por 1e4
-        self.mtx = mtx * 1e4
-        self.b_obs = b_obs * 1e4
+        self.weight = self._numerical_escaling(sigma_b)
+
+        self.mtx = self.weight @ mtx
+        self.b_obs = self.weight @ b_obs
 
         # Multiplicamos o erro por 1e4 também
         if sigma_mtx != None:
-            self.sigma_mtx = sigma_mtx * 1e4
-        self.sigma_b = sigma_b * 1e4
+            self.sigma_mtx = self.weight @ sigma_mtx
+
+        if sigma_b is not None:
+            self.sigma_b = self.weight @ sigma_b
 
         # Parâmetros de regularização (grid logarítmico)
         self.alphas = np.logspace(-5, 0, 100)
 
         # Chute inicial
         self.x0 = np.ones(len(self.b_obs)) / len(self.b_obs)
+
+    def _numerical_escaling(self, sigma_b: np.ndarray):
+        '''
+        Escala numericamente os valores da matrix A e vetor b, para aprimorar a convergencia.
+
+        isso é feito pela forma como é definido em Aster et al. 2018
+        W é uma matriz diagonal cujo W_ii = 1/SigmaB_i
+        W é a matriz de pesos
+
+        '''
+        
+        if sigma_b is None:
+            return np.eye(len(b_obs))
+        
+        # criando a matriz W 
+        # escolhendo a menor incerteza para normalizar as outras
+        sigma_min = np.min(sigma_b)
+        weights = sigma_min / np.asarray(sigma_b)   # o mais preciso tem peso 1.0
+        
+        # Aplica os pesos nas linhas de A e b
+        W = np.diag(weights)
+        return W
+
 
     def _sqrnorm(self, A: np.ndarray, b: np.ndarray, alpha: float, x: np.ndarray, x0: np.ndarray) -> float:
         """
