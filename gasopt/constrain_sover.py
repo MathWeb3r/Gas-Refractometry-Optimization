@@ -45,10 +45,17 @@ class ConstrainSolver:
             - 'multi_start': Testa múltiplos pontos de partida e escolhe o de menor resíduo.
         """
         # Melhora a precisão numérica multiplicando matrizes e observações por 1e4
-        self.mtx = mtx * 1e4
-        self.b_obs = b_obs * 1e4
-        self.sigma_mtx = sigma_mtx * 1e4
-        self.sigma_b = sigma_b * 1e4
+        self.weight = self._numerical_escaling(sigma_b, len(b_obs))
+        self.mtx = self.weight @ mtx
+        self.b_obs = self.weight @ b_obs
+        if sigma_mtx is not None:
+            self.sigma_mtx = self.weight @ sigma_mtx
+        else:
+            self.sigma_mtx = None
+        if sigma_b is not None:
+            self.sigma_b = self.weight @ sigma_b
+        else:
+            self.sigma_b = None
 
         self.n_gases = self.mtx.shape[1]
         self.init_strategy = init_strategy.lower()
@@ -59,6 +66,20 @@ class ConstrainSolver:
             self.x0 = self._compute_initial_guess(self.init_strategy)
 
         self.verbose = verbose
+
+    def _numerical_escaling(self, sigma_b: Optional[np.ndarray], n_obs: int) -> np.ndarray:
+        """
+        Calcula a matriz diagonal de pesos W a partir das incertezas (Aster et al., 2018).
+        Utiliza pesos relativos normalizados pela menor incerteza (sigma_min).
+        
+        Se sigma_b for None, retorna a matriz identidade para não alterar os dados.
+        """
+        if sigma_b is None:
+            return np.eye(n_obs)
+        
+        sigma_min = np.min(sigma_b)
+        weights = sigma_min / np.asarray(sigma_b)
+        return np.diag(weights)
 
     @staticmethod
     def _project_to_simplex(v: np.ndarray) -> np.ndarray:
