@@ -102,7 +102,10 @@ class GasMix():
                 refracs = [self.get_rafrac(g, wv) for g in self.gases]
                 mtx.append(refracs)
         
-        return MixtureMatrix(mtx)
+        res = MixtureMatrix(mtx)
+        res.gases = self.ids
+        res.wvlens = self.wvlens
+        return res
         
     def get_sigma_matrix(self) -> np.ndarray:
         mtx = self.get_fullmatrix()
@@ -150,12 +153,46 @@ class MixtureMatrix(np.ndarray):
     def __array_finalize__(self, obj):
         if obj is None:
             return 
+        self.gases = getattr(obj, 'gases', None)
+        self.wvlens = getattr(obj, 'wvlens', None)
 
     def cond_number(self):
         """
         This method returns the conditional number of the matrix
         """
+        if self.ndim == 3 and self.shape[2] == 2:
+            return cond(self[:, :, 0])
         return cond(self)
+
+    def __repr__(self):
+        parts = [f"shape={self.shape}"]
+        
+        gases = getattr(self, 'gases', None)
+        if gases is not None:
+            parts.append(f"gases={list(gases)}")
+
+        wvlens = getattr(self, 'wvlens', None)
+        if wvlens is not None:
+            try:
+                parts.append(f"wvlens={[round(float(w), 4) for w in wvlens]}")
+            except Exception:
+                parts.append(f"wvlens={list(wvlens)}")
+
+        if (self.ndim == 2 or (self.ndim == 3 and self.shape[2] == 2)) and min(self.shape[:2]) > 0:
+            try:
+                k = self.cond_number()
+                if np.isinf(k):
+                    parts.append("cond=inf")
+                elif k >= 1e4:
+                    parts.append(f"cond={k:.2e}")
+                else:
+                    parts.append(f"cond={k:.2f}")
+            except Exception:
+                pass
+
+        header = f"<MixtureMatrix: {', '.join(parts)}>"
+        arr_str = np.array2string(np.asarray(self))
+        return f"{header}\n{arr_str}"
 
 if __name__ == '__main__':
     operator = GasMix(
