@@ -4,7 +4,7 @@ from scipy import optimize as opt
 from scipy.interpolate import CubicSpline
 from scipy.interpolate import UnivariateSpline
 from kneed import KneeLocator
-
+from typing import Optional
 
 from gasopt.gladstone_dale import GasMix
 
@@ -355,7 +355,30 @@ class TikhonovSolver():
         optimal_alpha = good_alphas[knee_index]
         solution = phis[knee_index]
 
-        return TikSolution(x, y, good_alphas, optimal_alpha, solution, knee_index, curve_vals)
+        # Calculo da incerteza da solução, via Matriz de Ganho 'G_alpha'
+        # partir de Parameter Estimation and Inverse Problems, Aster et al 2018 
+        At = self.mtx.T
+        n_params = self.mtx.shape[1]
+
+        # Matriz de Ganho: G_alpha = (A^T A + alpha^2 I)^(-1) A^T
+        inv_term = np.linalg.inv(At @ self.mtx + (optimal_alpha**2) * np.eye(n_params))
+        G_alpha = inv_term @ At
+
+        # Matriz de covariância do ruído de medição
+        # se self.sigma_b for 1D é apenas ele
+        # senão, é uma matrix diagonal dos sigmas
+        S_eps = np.diag(self.sigma_b ** 2) if self.sigma_b.ndim == 1 else self.sigma_b
+
+        # Propagação de covariância: Cov(Phi) = G_alpha @ S_eps @ G_alpha^T
+        cov_phi = G_alpha @ S_eps @ G_alpha.T
+
+        # Incerteza padrão u(Phi) de cada fração molar (desvio padrão)
+        u_phi = np.sqrt(np.diag(cov_phi))
+
+        return TikSolution(
+            x, y, good_alphas, optimal_alpha, solution, knee_index, curve_vals, 
+            u_phi=u_phi, cov_phi=cov_phi
+        )
 
 class TikSolution():
     """
@@ -365,7 +388,18 @@ class TikSolution():
     encontrado e o vetor de frações molares ótimas.
     """
 
-    def __init__(self, res_norms: np.ndarray, sol_norms: np.ndarray, alphas: np.ndarray, opt_alpha, opt_phi: np.ndarray, opt_index: int, curv: np.ndarray):
+    def __init__(
+        self, 
+        res_norms: np.ndarray, 
+        sol_norms: np.ndarray, 
+        alphas: np.ndarray, 
+        opt_alpha, 
+        opt_phi: np.ndarray, 
+        opt_index: int, 
+        curv: np.ndarray, 
+        u_phi: Optional[np.ndarray] = None, 
+        cov_phi: Optional[np.ndarray] = None
+    ):
         """
         Inicializa o objeto com os resultados da otimização.
 
@@ -390,6 +424,8 @@ class TikSolution():
         self.opt_alpha = opt_alpha
         self.opt_phi = opt_phi
         self.opt_index = opt_index
+        self.u_phi = u_phi
+        self.cov_phi = cov_phi
 
         # encontrando onde a curvatura é a maior
         #optIdx = np.argmax(np.abs(self.curvature)) 
@@ -402,6 +438,7 @@ class TikSolution():
         return (
             f"Optimal Alpha: {self.opt_alpha}\n"
             f"Optimal Phi: {self.opt_phi}\n"
+            f"Optimal Phi St. Dev.: {self.u_phi}\n"
             f"Residual Norm: {self.residual_norm}\n"
             f"Solution Norm: {self.solution_norm}\n"
         )
