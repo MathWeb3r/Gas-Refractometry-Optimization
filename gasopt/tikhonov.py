@@ -18,7 +18,8 @@ class TikhonovSolver():
     automaticamente através da detecção do ponto de inflexão ("knee") da Curva L.
     """
 
-    def __init__(self, mtx: np.ndarray, sigma_mtx: np.ndarray, b_obs: np.ndarray, sigma_b: np.ndarray):
+    def __init__(self, mtx: np.ndarray = None, sigma_mtx: np.ndarray = None, 
+                b_obs: np.ndarray = None, sigma_b: np.ndarray = None):
         """
         Inicializa o resolvedor com as matrizes de refratividade e observações.
 
@@ -41,7 +42,8 @@ class TikhonovSolver():
         self.b_obs = b_obs * 1e4
 
         # Multiplicamos o erro por 1e4 também
-        self.sigma_mtx = sigma_mtx * 1e4
+        if sigma_mtx != None:
+            self.sigma_mtx = sigma_mtx * 1e4
         self.sigma_b = sigma_b * 1e4
 
         # Parâmetros de regularização (grid logarítmico)
