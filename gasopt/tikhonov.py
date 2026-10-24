@@ -19,7 +19,7 @@ class TikhonovSolver():
     """
 
     def __init__(self, mtx: np.ndarray = None, sigma_mtx: np.ndarray = None, 
-                b_obs: np.ndarray = None, sigma_b: np.ndarray = None):
+                b_obs: np.ndarray = None, sigma_b: np.ndarray = None, x0: np.ndarray = None):
         """
         Inicializa o resolvedor com as matrizes de refratividade e observações.
 
@@ -41,6 +41,11 @@ class TikhonovSolver():
         self.mtx = self.weight @ mtx
         self.b_obs = self.weight @ b_obs
 
+        # Atributos originais (sem escalonamento de peso)
+        self.A_orig = mtx
+        self.b_orig = b_obs
+        self.sigma_orig = sigma_b
+
         # Multiplicamos o erro por 1e4 também
         if sigma_mtx != None:
             self.sigma_mtx = self.weight @ sigma_mtx
@@ -52,7 +57,10 @@ class TikhonovSolver():
         self.alphas = np.logspace(-5, 0, 100)
 
         # Chute inicial
-        self.x0 = np.ones(len(self.b_obs)) / len(self.b_obs)
+        if x0 is None:
+            self.x0 = np.ones(len(self.b_obs)) / len(self.b_obs)
+        else:
+            self.x0 = x0
 
     def _numerical_escaling(self, sigma_b: np.ndarray):
         '''
@@ -199,7 +207,7 @@ class TikhonovSolver():
 
             # Cálculo das normas euclidianas quadradas para a Curva L
             res_norm = np.sum((self.mtx @ phi_calc - self.b_obs) ** 2)
-            sol_norm = np.sum(phi_calc ** 2)
+            sol_norm = np.sum((phi_calc - self.x0) ** 2)
             
             normas_residuo.append(res_norm)
             normas_solucao.append(sol_norm)
@@ -292,7 +300,7 @@ class TikhonovSolver():
         # eu considero o ponto como repetido
         # e eu removo os pontos repetidos
         valid = np.ones(len(t), dtype=bool)
-        valid[1:] = np.diff(t) > 1e-12
+        valid[1:] = np.diff(t) > 0.005
 
         t = t[valid]
         x_n = x_n[valid]
@@ -317,6 +325,71 @@ class TikhonovSolver():
         # Mapear o índice de curvatura máxima de volta para o vetor original
         return int(indices_originais[np.argmax(curve)]), curve
     
+
+    def is_valid_L(x, y, knee_index, curve_vals):
+        """
+        Retorna True se a curva tem geometria de L, e False caso contrário.
+        """
+        # Teste de Prominência do Vértice
+        prominencia = np.max(curve_vals) / (np.mean(curve_vals) + 1e-12)
+        if prominencia < 3.0:
+            return False  # Curvatura uniforme, sem cotovelo nítido
+
+        # Teste do Ângulo entre os Braços (normalizado)
+        x_n = (x - x.min()) / (x.max() - x.min() + 1e-12)
+        y_n = (y - y.min()) / (y.max() - y.min() + 1e-12)
+        
+        v1 = np.array([x_n[0] - x_n[knee_index], y_n[0] - y_n[knee_index]])
+        v2 = np.array([x_n[-1] - x_n[knee_index], y_n[-1] - y_n[knee_index]])
+        
+        norm1, norm2 = np.linalg.norm(v1), np.linalg.norm(v2)
+        if norm1 == 0 or norm2 == 0:
+            return False
+            
+        cos_theta = np.clip(np.dot(v1, v2) / (norm1 * norm2), -1.0, 1.0)
+        theta = np.degrees(np.arccos(cos_theta))
+        
+        # Um L aceitável deve ter ângulo entre 70° e 130°
+        return 70.0 <= theta <= 130.0    
+
+    def find_morozov(self, phis: np.ndarray):
+        """
+        Seleciona o índice de alpha cujo resíduo ponderado se aproxima do número
+        de medições M (Princípio da Discrepância de Morozov, Aster et al. 2018).
+        """
+
+        M = len(self.b_obs)
+        chi2 = np.array([
+            np.sum(((self.mtx @ phi - self.b_obs) / self.sigma_b) ** 2) 
+            for phi in phis
+        ])
+
+        chi2_min = np.min(chi2)
+        # Se o ruído amostrado foi maior que o valor médio teórico M,
+        # o alvo não pode ser M; deve ser um patamar ligeiramente acima do piso do ruído:
+        alvo = max(float(M), float(chi2_min * 1.10))
+
+        best_idx = int(np.argmin(np.abs(chi2 - alvo)))
+        return best_idx, chi2
+        # M = len(self.b_obs)
+
+        # if self.A_orig is not None and self.b_orig is not None and self.sigma_orig is not None:
+        #     chi2 = np.array([
+        #         np.sum(((self.A_orig @ phi - self.b_orig) / self.sigma_orig) ** 2) 
+        #         for phi in phis
+        #     ])
+        # else:
+        #     chi2 = np.array([
+        #         np.sum(((self.mtx @ phi - self.b_obs) / self.sigma_b) ** 2) 
+        #         for phi in phis
+        #     ])
+        
+        # # Encontra o índice onde Chi² mais se aproxima de M
+        # best_idx = int(np.argmin(np.abs(chi2 - M)))
+        # return best_idx, chi2
+
+
+
     def solve(self, log: bool = False, factor=0.1, method: str = 'spline'):
         """
         Executa o fluxo completo de solução por Regularização de Tikhonov.
@@ -334,6 +407,7 @@ class TikhonovSolver():
             Método para detecção do ponto ótimo da Curva L. Opções:
             - 'spline': Curvatura geométrica κ via derivadas de spline (recomendado).
             - 'kneed' : Detecção de "knee" via biblioteca Kneed (KneeLocator).
+            - 'morozov': Princípio da Discrepância de Morozov (resíduo χ² ≈ M).
             Padrão: 'spline'.
 
         Retorna
@@ -347,7 +421,7 @@ class TikhonovSolver():
             Se o método especificado não for reconhecido.
         """
         # Métodos disponíveis para detecção do ponto ótimo
-        valid_methods = ('kneed', 'spline')
+        valid_methods = ('kneed', 'spline', 'morozov', 'auto')
         if method not in valid_methods:
             raise ValueError(
                 f"Método '{method}' não reconhecido. Use: {valid_methods}"
@@ -373,12 +447,31 @@ class TikhonovSolver():
             # Kneedle: retorna o valor x correspondente ao knee
             knee = self.find_knee(x, y)
             knee_index = np.where(x == knee)[0][0]
+            curve_vals = np.array([])
 
         elif method == 'spline':
             # Curvatura geométrica via spline: retorna diretamente o índice
             knee_index, curve_vals = self.find_max_curvature_spline(x, y)
+        
+        elif method == 'morozov':
+            # Morozov: independe da geometria da Curva L
+            knee_index, _ = self.find_morozov(phis)
+            curve_vals = np.array([])
+        
+        elif method == 'auto':
+            # Tenta primeiro a Spline
+            knee_index, curve_vals = self.find_max_curvature_spline(x, y)
+            
+            # Verifica se a geometria de L é válida
+            if not is_valid_L(x, y, knee_index, curve_vals):
+                # Não formou um L -> faz o fallback automático para Morozov
+                knee_index, _ = self.find_morozov(phis)
+            else:
+                knee = self.find_knee(x, y)
+                knee_index = np.where(x == knee)[0][0]
+                curve_vals = np.array([])
 
-        # 5. Extrair a solução ótima
+        # Extrair a solução ótima
         optimal_alpha = good_alphas[knee_index]
         solution = phis[knee_index]
 
@@ -466,6 +559,6 @@ class TikSolution():
             f"Optimal Alpha: {self.opt_alpha}\n"
             f"Optimal Phi: {self.opt_phi}\n"
             f"Optimal Phi St. Dev.: {self.u_phi}\n"
-            f"Residual Norm: {self.residual_norm}\n"
-            f"Solution Norm: {self.solution_norm}\n"
+            #f"Residual Norm: {self.residual_norm}\n"
+            #f"Solution Norm: {self.solution_norm}\n"
         )
