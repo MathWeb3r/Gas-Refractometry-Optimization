@@ -178,8 +178,8 @@ class GasDatabase:
 
         Returns
         -------
-        bool
-            True if the list is valid.
+        list
+            Lowecase and white space strip idlist.
 
         Raises
         ------
@@ -212,7 +212,7 @@ class GasDatabase:
                 # Raises ValueError if no candidate equations exist for the generic name
                 self._get_candidates(gname)
 
-        return True
+        return sanitized
 
     def _get_candidates(self, gas_name: str) -> list:
         """
