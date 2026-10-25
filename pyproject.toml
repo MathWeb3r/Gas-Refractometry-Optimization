@@ -8,6 +8,10 @@ version = "0.1.0"
 description = "Otimização de refratometria de gases"
 readme = "README.md"
 requires-python = ">=3.8"
+license = "GPL-3.0-or-later"
+authors = [
+  {name = "Matheus Mariano", email = "matheus_mariano@usp.br"},
+]
 dependencies = [
     "numpy",
     "scipy",
@@ -17,6 +21,16 @@ dependencies = [
     "kneed"
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "jupyter",
+    "plotly"
+]
+
 [tool.setuptools.packages.find]
 where = ["."]
 exclude = ["tests*", "notebooks*"]
+
+[tool.setuptools.package-data]
+gasopt = ["data/*.json"]
