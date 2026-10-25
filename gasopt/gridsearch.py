@@ -3,7 +3,6 @@ import numpy as np
 import multiprocessing
 import warnings
 import pandas as pd
-from gasopt import GasMix
 from math import comb
 
 from heapq import heapify
@@ -22,48 +21,46 @@ from heapq import heapreplace as replace
 # combinações em pedaços (chunks).
 # Então vou calcular os kappas em um chunk, 
 
-
 import json
 from pathlib import Path
-from gasopt.dispersion import Gas
-# espera essa estruta de arquivo
+try:
+    from .database import GasDatabase
+except ImportError:
+    from gasopt.database import GasDatabase
+
+DB = GasDatabase()
+
+# espera essa estrutura de arquivo
 #
 # gas_refractometry_optimize
 # ├── gasopt
 # │   ├── __init__.py
 # │   ├── gridsearch.py
-# ├── data
-# │   └── gas_database.json
+# |   ├── data
+# │      └── gas_database.json
 
-# Caminho do arquivo atual
-current_file = Path(__file__).resolve()
+# --- LEGACY (substituído pelo GasDatabase) ---
+# current_file = Path(__file__).resolve()
+# BASE_DIR = current_file.parent.parent 
+# DATAPATH = BASE_DIR / 'data' / 'gas_database.json'
+# with open(DATAPATH, 'r') as f:
+#     DATABASE = json.load(f)
 
-# .parent é 'scripts/', .parent.parent é a raiz do projeto 'gas_refractometry_optimize/'
-BASE_DIR = current_file.parent.parent 
-
-# caminho do database
-DATAPATH = BASE_DIR / 'data' / 'gas_database.json'
-with open(DATAPATH, 'r') as f:
-    DATABASE = json.load(f)
-
-def ids_hash(gasesid):
-    gashash = dict()
-    # encontrando os ids validos para cada gas
-    for gas in gasesid:
-        valid_id = True 
-        gashash[gas] = []
-        i = 1
-        while valid_id: 
-            try:
-                curr_id = f'{gas}_{i}'
-                DATABASE[curr_id]
-                gashash[gas] += [Gas(id=curr_id)]
-            except:
-                valid_id = False
-
-            i += 1
-
-    return gashash
+# def ids_hash(gasesid):
+#     gashash = dict()
+#     for gas in gasesid:
+#         valid_id = True 
+#         gashash[gas] = []
+#         i = 1
+#         while valid_id: 
+#             try:
+#                 curr_id = f'{gas}_{i}'
+#                 DATABASE[curr_id]
+#                 gashash[gas] += [Gas(id=curr_id)]
+#             except:
+#                 valid_id = False
+#             i += 1
+#     return gashash
 
 class GridSearch():
     def __init__(self, sample: np.ndarray = np.array([]), k: int = 4):
@@ -86,8 +83,7 @@ class GridSearch():
         #
         # depois pensar em como o usuario escolhe isso
         self.gasesid = ['co2', 'o2', 'ar', 'n2']
-        
-        self.gasesid_hash = ids_hash(self.gasesid)
+        # self.gasesid_hash = ids_hash(self.gasesid)  # LEGACY: agora gerenciado pelo GasDatabase
 
         # temperatura da mistura
         self.temp = 273.15
@@ -118,23 +114,24 @@ class GridSearch():
         '''
         return list(itertools.islice(self.combs, size))
 
-    def _gas_valid_interval(self, gasid, wvlen):
-        '''
-        Encontra uma equação valida para o gas de id = gasid
-        para o comprimento de onda wvlen (em um).
-        Se nao encontrar, avisa com warning e usa o primeiro candidato.
-        '''
-        candidatos = self.gasesid_hash[gasid]
-        for g in candidatos:
-            rmin, rmax = g.range
-            if rmin <= wvlen <= rmax:
-                return g
-        
-        # se nenhuma equacao cobrir esse comprimento de onda, avisa e usa o primeiro
-        if self.verbose:
-            warnings.warn(f"Comprimento de onda {wvlen:.4f} um fora da faixa para '{gasid}'. Usando extrapolacao de {candidatos[0].name}.")
-        
-        return candidatos[0]
+    # --- LEGACY (substituído por DB.get_best_equation) ---
+    # def _gas_valid_interval(self, gasid, wvlen):
+    #     '''
+    #     Encontra uma equação valida para o gas de id = gasid
+    #     para o comprimento de onda wvlen (em um).
+    #     Se nao encontrar, avisa com warning e usa o primeiro candidato.
+    #     '''
+    #     candidatos = self.gasesid_hash[gasid]
+    #     for g in candidatos:
+    #         rmin, rmax = g.range
+    #         if rmin <= wvlen <= rmax:
+    #             return g
+    #     
+    #     # se nenhuma equacao cobrir esse comprimento de onda, avisa e usa o primeiro
+    #     if self.verbose:
+    #         warnings.warn(f"Comprimento de onda {wvlen:.4f} um fora da faixa para '{gasid}'. Usando extrapolacao de {candidatos[0].name}.")
+    #     
+    #     return candidatos[0]
 
     def _get_bigmatrix(self):
         '''
@@ -147,7 +144,8 @@ class GridSearch():
 
         for i, wl in enumerate(self.sample):
             for j, gas in enumerate(self.gasesid):
-                g = self._gas_valid_interval(gas, wl)
+                #g = self._gas_valid_interval(gas, wl)
+                g = DB.get_best_equation(gas, wl)
                 # fator de temperatura
                 t_factor = g.t_ref / self.temp
                 refrac = g.calculate_sellmeier(float(wl))[0]
@@ -274,7 +272,8 @@ class GridResult:
                 valido = True
                 ids_laser = {}
                 for gasid in self.grid.gasesid:
-                    gas = self.grid._gas_valid_interval(gasid, wl)
+                    #gas = self.grid._gas_valid_interval(gasid, wl)
+                    gas = DB.get_best_equation(gasid, wl)
                     ids_laser[gasid] = str(gas)
 
                     # se uma não estiver, ja era
@@ -308,8 +307,8 @@ class GridResult:
                 eqs = []
                 
                 for gasid in self.grid.gasesid:
-                    gas = self.grid._gas_valid_interval(gasid, wl)
-
+                    #gas = self.grid._gas_valid_interval(gasid, wl)
+                    gas = DB.get_best_equation(gasid, wl)
                     if gas.range[0] <= wl <= gas.range[1]:
                         eqs.append(f'{gasid}: {str(gas)}')
 
