@@ -1,13 +1,10 @@
 import json
 import warnings
-from pathlib import Path
 from typing import List
+from pathlib import Path
 
-
-# Relative path to database.json
-BASE_DIR = Path(__file__).resolve().parent.parent
-DEFAULT_DB_PATH = BASE_DIR / 'data' / 'gas_database.json'
-
+from importlib.resources import files 
+DEFAULT_DB_PATH = files('gasopt').joinpath('data', 'gas_database.json')
 
 class GasDatabase:
     """
