@@ -47,7 +47,7 @@ class GasMix():
                 self.gases = None
 
             else:
-                self.gases = np.array([Gas(id) for id in ids])
+                self.gases = np.array([DB.get_gas(id) for id in ids])
  
         else:
             self.is_generic = False
