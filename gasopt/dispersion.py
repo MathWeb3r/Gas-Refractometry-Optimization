@@ -11,15 +11,11 @@ from pathlib import Path
 # ├── data
 # │   └── gas_database.json
 
-# Caminho do arquivo atual
-current_file = Path(__file__).resolve()
-
-# .parent é 'scripts/', .parent.parent é a raiz do projeto 'gas_refractometry_optimize/'
-BASE_DIR = current_file.parent.parent 
-
-# caminho do database
-DATAPATH = BASE_DIR / 'data' / 'gas_database.json'
-
+# # Caminho do arquivo atual
+# --- LEGACY (substituído pelo GasDatabase) ---
+# current_file = Path(__file__).resolve()
+# BASE_DIR = current_file.parent.parent 
+# DATAPATH = BASE_DIR / 'data' / 'gas_database.json'
 
 # Essa classe será a responsável por tratar a dispersão dos gases
 # espero que ela me dar valores de refratividade por comprimento de onda
@@ -136,32 +132,35 @@ class Gas(Sellmeier):
         ----------
         *id: str, gas id in the database
         '''
-        with open(DATAPATH, 'r') as f:
-            data = json.load(f)
+        # --- LEGACY: with open(DATAPATH, 'r') as f: data = json.load(f) ---
+        from .database import GasDatabase
+        db = GasDatabase()
+        db.in_database(_id)
+        data = db._raw_data
 
-            # sellmeier coefficients
-            A = data[_id]['coef']['A']       
-            B = data[_id]['coef']['B']
-            C = data[_id]['coef']['C']
-            super().__init__(A=A, B=B, C=C)
-            
-            # metadata
-            self.id = _id
-            self.name = data[_id]['metadata']['gas']
-            self.t_ref = data[_id]['metadata']['t_ref']
-            self.p_ref = data[_id]['metadata']['p_ref']
-            self.multiplier = data[_id]['metadata']['multiplier']
-            
-            # intervalo de validade dos coeficientes
-            inf = data[_id]['spectral_range_nm']['min']
-            sup = data[_id]['spectral_range_nm']['max']
-            self.range = (inf, sup)
+        # sellmeier coefficients
+        A = data[_id]['coef']['A']       
+        B = data[_id]['coef']['B']
+        C = data[_id]['coef']['C']
+        super().__init__(A=A, B=B, C=C)
+        
+        # metadata
+        self.id = _id
+        self.name = data[_id]['metadata']['gas']
+        self.t_ref = data[_id]['metadata']['t_ref']
+        self.p_ref = data[_id]['metadata']['p_ref']
+        self.multiplier = data[_id]['metadata']['multiplier']
+        
+        # intervalo de validade dos coeficientes
+        inf = data[_id]['spectral_range_nm']['min']
+        sup = data[_id]['spectral_range_nm']['max']
+        self.range = (inf, sup)
 
-            # artigo de referencia
-            self.reference = data[_id]['metadata']['reference']
+        # artigo de referencia
+        self.reference = data[_id]['metadata']['reference']
 
-            # incerteza
-            self.sigma = data[_id]['sigma']
+        # incerteza
+        self.sigma = data[_id]['sigma']
 
     def __repr__(self):
         return f'{self.name} de {self.reference}'
