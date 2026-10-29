@@ -3,7 +3,7 @@ import emcee as mc
 import matplotlib.pyplot as plt
 
 class MCMCInference:
-    def __init__(self, mtx, sigma_mtx, phi_real=None, erro=None, b_obs=None, sigma=None):
+    def __init__(self, mtx, sigma_mtx, phi_real=None, erro=None, b_obs=None, sigma=None, sigma_b=None):
         """
         Inicializa a classe de inferência Bayesiana MCMC.
         
@@ -14,17 +14,33 @@ class MCMCInference:
             erro (float, opcional): Erro percentual para simulação de b_obs (ex: 0.001 para 0.1%).
             b_obs (numpy.ndarray, opcional): Vetor de refratividade observado.
             sigma (numpy.ndarray ou float, opcional): Erro associado às observações.
+            sigma_b = 
         """
         self.mtx = mtx
         self.sigma_mtx = sigma_mtx
+        
         # o numero de dimensões é igual 
         # ao numero de gases 
         # menos 1
         self.ndim = mtx.shape[0] - 1
         
+        self.b_obs = b_obs
+
+        # compartibilidade 
+        # sigma é o erro de b
+        # em outras classes desse pacote, é chamada sigma_b
+        if sigma_b is not None:
+            self.sigma = sigma_b
+        else:
+            self.sigma = sigma
+        
+        if sigma is not None and sigma_b is not None:
+            raise ValueError("É necessário fornecer sigma ou sigma_b, não ambos.")
+
         if b_obs is not None and sigma is not None:
             self.b_obs = b_obs
             self.sigma = sigma
+
         elif phi_real is not None and erro is not None:
             # a refratividade real
             b_real = np.dot(mtx, phi_real)
@@ -189,7 +205,7 @@ class MCMCInference:
         )
         
         return sampler
-        
+    
     def get_results(self, sampler = None, burn_in=300):
         """
         Extrai as cadeias de resultado a partir de um sampler percorrido.
@@ -221,7 +237,8 @@ class MCMCInference:
         
         return chain, chainflat
 
-    def mean_interval(self, chainflat, confidence=0.95):
+    @staticmethod
+    def mean_interval(chainflat, confidence=0.95):
         """
         Cálculo da média e intervalo de credibilidade (bayesiano) para cada parâmetro.
         
