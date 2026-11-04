@@ -464,7 +464,7 @@ class TikhonovSolver():
             # Verifica se a geometria de L é válida
             if not self.is_valid_L(x, y, knee_index, curve_vals):
                 # Não formou um L -> faz o fallback automático para Morozov
-                knee_index, _ = self.find_morozov(phis)
+                knee_index, _ = self.find_morozov(phis) 
 
         # Extrair a solução ótima
         optimal_alpha = good_alphas[knee_index]
