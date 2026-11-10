@@ -35,34 +35,41 @@ class TikhonovSolver():
             Vetor de incertezas/erros associados a b_obs.
         """
 
-        # Melhorando a precisão numérica
-        self.weight = self._numerical_escaling(sigma_b)
-
-        self.mtx = self.weight @ mtx
-        self.b_obs = self.weight @ b_obs
-
         # Atributos originais (sem escalonamento de peso)
         self.A_orig = mtx
         self.b_orig = b_obs
         self.sigma_orig = sigma_b
 
-        # Multiplicamos o erro por 1e4 também
-        if sigma_mtx != None:
+        # Melhorando a precisão numérica
+        self.weight = self._numerical_escaling(sigma_b, len(b_obs))
+
+        self.mtx = self.weight @ mtx
+        self.b_obs = self.weight @ b_obs
+
+        # Multiplicamos o erro pelos pesos também
+        if sigma_mtx is not None:
             self.sigma_mtx = self.weight @ sigma_mtx
+        else:
+            self.sigma_mtx = None
 
         if sigma_b is not None:
             self.sigma_b = self.weight @ sigma_b
+        else:
+            self.sigma_b = None
 
         # Parâmetros de regularização (grid logarítmico)
         self.alphas = np.logspace(-5, 0, 100)
 
+        # Número de gases (colunas da matriz A)
+        n_gases = self.mtx.shape[1]
+
         # Chute inicial
         if x0 is None:
-            self.x0 = np.ones(len(self.b_obs)) / len(self.b_obs)
+            self.x0 = np.ones(n_gases) / n_gases
         else:
-            self.x0 = x0
+            self.x0 = np.asarray(x0, dtype=float)
 
-    def _numerical_escaling(self, sigma_b: np.ndarray):
+    def _numerical_escaling(self, sigma_b: Optional[np.ndarray], n_obs: int):
         '''
         Escala numericamente os valores da matrix A e vetor b, para aprimorar a convergencia.
 
@@ -73,7 +80,7 @@ class TikhonovSolver():
         '''
         
         if sigma_b is None:
-            return np.eye(len(b_obs))
+            return np.eye(n_obs)
         
         # criando a matriz W 
         # escolhendo a menor incerteza para normalizar as outras
@@ -188,8 +195,9 @@ class TikhonovSolver():
         phis : np.ndarray
             Matriz com os vetores de solução (frações molares) para cada alpha.
         """
-        # Array para receber os valores
-        phis = np.zeros([len(self.alphas), len(self.b_obs)])
+        # Array para receber os valores (n_alphas x n_gases)
+        n_gases = self.mtx.shape[1]
+        phis = np.zeros([len(self.alphas), n_gases])
 
         # Listas para armazenar as componentes da Curva L
         normas_residuo = []
@@ -358,8 +366,9 @@ class TikhonovSolver():
         """
 
         M = len(self.b_obs)
+        sigma_vec = self.sigma_b if self.sigma_b is not None else np.ones(M)
         chi2 = np.array([
-            np.sum(((self.mtx @ phi - self.b_obs) / self.sigma_b) ** 2) 
+            np.sum(((self.mtx @ phi - self.b_obs) / sigma_vec) ** 2) 
             for phi in phis
         ])
 
@@ -480,15 +489,16 @@ class TikhonovSolver():
         G_alpha = inv_term @ At
 
         # Matriz de covariância do ruído de medição
-        # se self.sigma_b for 1D é apenas ele
-        # senão, é uma matrix diagonal dos sigmas
-        S_eps = np.diag(self.sigma_b ** 2) if self.sigma_b.ndim == 1 else self.sigma_b
-
-        # Propagação de covariância: Cov(Phi) = G_alpha @ S_eps @ G_alpha^T
-        cov_phi = G_alpha @ S_eps @ G_alpha.T
-
-        # Incerteza padrão u(Phi) de cada fração molar (desvio padrão)
-        u_phi = np.sqrt(np.diag(cov_phi))
+        # se self.sigma_b for None, u_phi e cov_phi ficam None
+        if self.sigma_b is not None:
+            S_eps = np.diag(self.sigma_b ** 2) if self.sigma_b.ndim == 1 else self.sigma_b
+            # Propagação de covariância: Cov(Phi) = G_alpha @ S_eps @ G_alpha^T
+            cov_phi = G_alpha @ S_eps @ G_alpha.T
+            # Incerteza padrão u(Phi) de cada fração molar (desvio padrão)
+            u_phi = np.sqrt(np.diag(cov_phi))
+        else:
+            cov_phi = None
+            u_phi = None
 
         return TikSolution(
             x, y, good_alphas, optimal_alpha, solution, knee_index, curve_vals, 

@@ -99,8 +99,6 @@ class ConstrainSolver:
         sum_w = np.sum(w)
         if sum_w > 0:
             return w / sum_w
-        if self.verbose:
-            print("Falhou.")
         return np.ones(n) / n
 
     def _compute_initial_guess(self, strategy: str) -> np.ndarray:
