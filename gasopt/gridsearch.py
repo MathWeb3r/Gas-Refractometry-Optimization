@@ -151,16 +151,13 @@ class GridSearch():
                 refrac = g.calculate_sellmeier(float(wl))[0]
                 self.bigmatrix[i, j] = refrac * t_factor
 
-    def _calculate_kappa(self, chunk):
+    def _calculate_kappa(self, tensor):
         '''
-        chunk é a matriz de índices, para um combinção específica
-        índices relativos a bigmatrix  
+        Calcula o número de condição kappa(A) para um chunk de matrizes.
+        Aceita tanto o tensor 3D (chunk_size, k, N) quanto a lista de índices do chunk.
         '''
-
-        # tensor tamanho: M x N x chunksize
-        # recorta a matriz da refratividades para aquelas 
-        # que estão nesse chunk
-        tensor = self.bigmatrix[chunk]
+        if not isinstance(tensor, np.ndarray) or tensor.ndim != 3:
+            tensor = self.bigmatrix[tensor]
 
         # tensor dos valores singulares
         s = np.linalg.svd(tensor, compute_uv=False)
@@ -213,26 +210,41 @@ class GridSearch():
 
         return arr
 
-    def run_seach(self, n_best: int = 100, chunk_size: int = 1000, v: bool = False):
+    def run_seach(self, key=None, n_best: int = 100, chunk_size: int = 1000, v: bool = False, *args, **kwargs):
         '''
+        key: callable, função chave f(tensor, *args, **kwargs) -> array 1D de scores a minimizar.
+             Se None, utiliza _calculate_kappa como padrão.
         n_best: int, numero do conjunto das melhores combinações
         chunk_size: int, tamanho máximo de chunk
         v: bool, -verbose, faz print dos warning
+        *args, **kwargs: parâmetros extras repassados para a função key (estilo scipy.optimize.curve_fit)
         '''
         
         self.nbest = n_best
         self.verbose = v
 
+        if key is None:
+            key = self._calculate_kappa
+
+        # Reinicializa o iterador de combinações e o heap para permitir múltiplas buscas
+        self.combs = itertools.combinations(range(len(self.sample)), self.k)
+        self.heap = []
+        heapify(self.heap)
+
         # cria uma matrix M x N
-        # M: Numero de gases 
-        # N: Numero de lasers
+        # M: Numero de lasers na sample
+        # N: Numero de gases
         # aqui estão todas as refratividades possíveis já
-        self._get_bigmatrix()
+        if not hasattr(self, 'bigmatrix'):
+            self._get_bigmatrix()
 
         for i in range(self.size // chunk_size + 1):
             curr_chunk = self._get_chunck(chunk_size)
-            curr_kappas = self._calculate_kappa(curr_chunk)
-            self._update_heap(curr_kappas, curr_chunk)            
+            if not curr_chunk:
+                break
+            tensor = self.bigmatrix[curr_chunk]
+            curr_scores = key(tensor, *args, **kwargs)
+            self._update_heap(curr_scores, curr_chunk)            
 
         
         return GridResult(
